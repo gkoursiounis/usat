@@ -68,7 +68,7 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
 
-# Check if APT package list exists
+# Check for proper argument format
 for (( i=1; i <= $#; ((i=i+2)) ))
 do
   # Resolve structure -FLAG PARAM
