@@ -8,13 +8,19 @@
 # Automated process to install & setup applications for Ubuntu.
 #
 # .SH OPTIONS
-# Arguments:
-# 1. Path to the file contains the APT package list (required)
-# 2. Configuration file for APT packages & applications (optional)
-# 3. Path to directory containing .deb files that don'ts exist
-# in the apt repository (eg. anydesk etc.) (optional)
-# Usage: ./usat.sh APT_PACKAGE_LIST CONFIG_FILE DEB_DIRECTORY
-# Example: ./usat.sh apt_list.txt config.sh (or .txt) ../debs
+# Argument structure: -FLAG FILE
+# 1. -a: Installs applications & packages from APT
+#        Requires: Path to the file contains the APT package list
+# 2. -c: Configures applications & packages (from APT)
+#        Requires: Configuration file (.sh or text file) with bash commands
+# 3. -d: Installs .deb files included in a specified directory. This files 
+#        usually do not exist in the apt repository (eg. anydesk etc.)
+#        Requires: Path to directory containing .deb files
+#
+# Wrong flags are reported. Duplicate flags are overwritten.
+#
+# Usage: ./usat.sh -a APT_PACKAGE_LIST -c CONFIG_FILE -d DEB_DIRECTORY
+# (in any order).
 #
 # .SH BUGS
 # No known bugs.
@@ -31,10 +37,6 @@ MAGENTA="\033[95m"
 CYAN="\033[96m"
 RESET="\033[0m"
 USAGE="Usage: $0 APT_PACKAGE_LIST CONFIG_FILE DEB_DIRECTORY"
-
-APT_PACKAGE_LIST=$1
-CONFIG_FILE=$2
-DEB_DIRECTORY=$3
 
 function completed() { echo -e "$GREEN[ COMPLETED ]  $RESET"; }
 function exists()  { echo -e "$CYAN[ ALREADY INSTALLED ] $RESET"; }
@@ -61,82 +63,89 @@ fi
 
 
 # Check for proper arguments
-if [ $# -lt 1 ]; then
+if [ $# -lt 2 ]; then
     echo -e "$RED[ERR]$RESET $USAGE"
     exit 1
 fi
 
 # Check if APT package list exists
-if [ ! -f "$APT_PACKAGE_LIST" ]; then
-  echo -e "$RED[ERR] File $APT_PACKAGE_LIST does not exist $RESET"
-  exit 1
-fi
+for (( i=1; i <= $#; ((i=i+2)) ))
+do
+  # Resolve structure -FLAG PARAM
+  FLAG="${!i}"
+  NEXT_NUMBER=$((i+1))
+  PARAM="${!NEXT_NUMBER}"
 
-# Check if configuration file exists
-if [ $# -eq 2 ] && [ ! -f "$CONFIG_FILE" ]; then
-  echo -e "$RED[ERR] File $CONFIG_FILE does not exist $RESET"
-  exit 1
-fi
+  if [[ $FLAG == "-a" ]] && [[ -f $PARAM ]]; then
+    APT_PACKAGE_LIST="$PARAM"
+  elif [[ $FLAG == "-c" ]] && [[ -f $PARAM ]]; then
+    CONFIG_FILE="$PARAM"
+  elif [[ $FLAG == "-d" ]] && [[ -d $PARAM ]]; then
+    DEB_DIRECTORY="$PARAM"
+  else
+    echo -e "$RED[ERR] Wrong flag or file/directory $PARAM does not exist $RESET"
+    exit
+  fi
+done
 
-# Check if .deb repository directory exists
-if [ $# -eq 3 ] && [ ! -d "$DEB_DIRECTORY" ]; then
-  echo -e "$RED[ERR] Directory $DEB_DIRECTORY does not exist $RESET"
-  exit 1
-fi
 
 ############################################
 # Install applications & packages from APT 
 ############################################
 
-echo -e "$MAGENTA[S01] Installing applications & packages from APT $RESET"
-sleep 1
+if [ ! -z "$APT_PACKAGE_LIST" ]; then
 
-# Update APT
-echo -e "$YELLOW[INF] Updating ATP repositories $RESET"
-updates
+  echo -e "$MAGENTA[APT] Installing applications & packages from APT $RESET"
+  sleep 1
 
-# Install APT packages
-while read package
-do
-  echo -en "$YELLOW[INF] Installing $RESET $package "
-  ( dpkg -l "$package" &> /dev/null && exists ) || install $package
-done < $APT_PACKAGE_LIST
+  # Update APT
+  echo -e "$YELLOW[INF] Updating ATP repositories $RESET"
+  updates
+
+  # Install APT packages
+  while read package
+  do
+    echo -en "$YELLOW[INF] Installing $RESET $package "
+    ( dpkg -l "$package" &> /dev/null && exists ) || install $package
+  done < $APT_PACKAGE_LIST
+
+fi
 
 ##############################################
 # Configure applications & packages from APT 
 ##############################################
 
-if [ $# -lt 2 ]; then
-  goodbye
+if [ ! -z "$CONFIG_FILE" ]; then
+
+  echo -e "$MAGENTA[CON] Configuring installed applications & packages $RESET"
+  sleep 1
+
+  while read config
+  do
+    echo -e "$YELLOW[INF] Configuring $RESET $config"
+    command $config
+  done < $CONFIG_FILE
+
 fi
-
-echo -e "$MAGENTA[S02] Configuring installed applications & packages $RESET"
-sleep 1
-
-while read config
-do
-  echo -e "$YELLOW[INF] Configuring $RESET $config"
-  command $config
-done < $CONFIG_FILE
 
 ##########################################################
 # Install .deb files included in the specified directory
 ##########################################################
 
-if [ $# -lt 3 ]; then
-  goodbye
+if [ ! -z "$DEB_DIRECTORY" ]; then
+
+  echo -e "$MAGENTA[DEB] Installing .deb files $RESET"
+  sleep 1
+
+  for file in "$DEB_DIRECTORY"/*
+  do
+    # Install only .deb files
+    if [[ $file == *.deb ]]; then
+      echo -e "$YELLOW[INF] Installing $RESET $file"
+      dpkg -i "$file"
+    fi
+  done
+
 fi
-
-echo -e "$MAGENTA[S03] Installing .deb files $RESET"
-sleep 1
-
-for file in "$DEB_DIRECTORY"/*
-do
-  # Install only .deb files
-  if [[ $file == *.deb ]]; then
-    echo -e "$YELLOW[INF] Installing $RESET $file"
-    dpkg -i "$file"
-  fi
-done
 
 goodbye
