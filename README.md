@@ -4,10 +4,11 @@ Simple bash script that facilitates the installation of applications & packages 
 Furthermore, it installs a list of locally stored .deb files for applications that do cannot be downloaded through APT. Lastly, it offers the possibility to execute a list of shell commands contained in .txt or .sh files that aim in the configuration of installed applications (eg. ssh etc.).
 
 # Arguments
-- Path to the file contains the APT package list (required)
-- Configuration file for APT packages & applications (optional)
-- Path to directory containing .deb files that don'ts exist in APT (eg. anydesk etc.) (optional)
-# Usage 
-`./usat.sh APT_PACKAGE_LIST CONFIG_FILE DEB_DIRECTORY`
+Argument structure: -FLAG FILE
+- -a: Installs applications & packages from APT. Requires: Path to the file contains the APT package list
+- -c: Configures applications & packages (from APT). Requires: Configuration file (.sh or text file) with bash commands
+- -d: Installs .deb files included in a specified directory. This files usually do not exist in the apt repository (eg. anydesk etc.). Requires: Path to directory containing .deb files
 
-Example: `./usat.sh apt_list.txt config.sh (or .txt) ../debs`
+Wrong flags are reported. Duplicate flags are overwritten.
+
+Usage: `./usat.sh -a APT_PACKAGE_LIST -c CONFIG_FILE -d DEB_DIRECTORY` (flags in any order).
